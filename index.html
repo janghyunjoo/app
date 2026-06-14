@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>서울시 자치구별 CCTV & 인구 통계 분석기 2025</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts (Noto Sans KR & Montserrat) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Montserrat', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+
+  <!-- Header Section -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+          <!-- Shield/Camera SVG Icon -->
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 bg-clip-text text-transparent">
+            서울시 자치구별 CCTV & 인구 통계 분석기
+          </h1>
+          <p class="text-xs text-slate-400">Seoul 2025 CCTV & Population Analytics</p>
+        </div>
+      </div>
+
+      <!-- File Upload & Mode Buttons -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- CCTV File Input Wrapper -->
+        <label class="flex items-center gap-2 px-3 py-2 bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg cursor-pointer transition text-xs font-medium">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span id="cctv-status" class="text-slate-300">CCTV 파일 업로드</span>
+          <input type="file" id="cctv-file" accept=".csv" class="hidden">
+        </label>
+
+        <!-- Pop File Input Wrapper -->
+        <label class="flex items-center gap-2 px-3 py-2 bg-slate-800 border border-slate-700 hover:border-emerald-500 rounded-lg cursor-pointer transition text-xs font-medium">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span id="pop-status" class="text-slate-300">인구수 파일 업로드</span>
+          <input type="file" id="pop-file" accept=".csv" class="hidden">
+        </label>
+
+        <!-- Reset Button -->
+        <button id="reset-btn" class="px-3 py-2 bg-rose-950/40 border border-rose-900/60 text-rose-400 hover:bg-rose-900/40 rounded-lg transition text-xs font-medium">
+          기본값 복원
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="notice-banner" class="max-w-7xl mx-auto w-full px-6 mt-4 hidden">
+    <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-indigo-200">
+      <div class="flex items-center gap-2">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+        </span>
+        <span><strong>안내:</strong> 업로드하신 파일 데이터가 실시간 연산에 정상 적용되었습니다!</span>
+      </div>
+      <button onclick="document.getElementById('notice-banner').classList.add('hidden')" class="hover:text-white">✕</button>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="flex-grow max-w-7xl mx-auto w-full p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Column 1: Control Panel & Selected District details -->
+    <div class="space-y-6 lg:col-span-1">
+      
+      <!-- Selection & Global Stats Card -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
+        <h2 class="text-sm font-semibold tracking-wide text-slate-400 uppercase mb-4">분석 옵션 및 자치구 선택</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label for="district-select" class="block text-xs font-medium text-slate-400 mb-1.5">상세히 확인할 자치구 선택</label>
+            <div class="relative">
+              <select id="district-select" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none cursor-pointer">
+                <!-- Options populated by Javascript -->
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Metrics Mini-Grid -->
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-850">
+              <span class="block text-[10px] text-slate-400 uppercase">서울 전체 CCTV</span>
+              <span id="total-cctv-label" class="text-lg font-bold text-indigo-400">0</span>
+              <span class="text-[10px] text-slate-500 block">누적대수</span>
+            </div>
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-850">
+              <span class="block text-[10px] text-slate-400 uppercase">서울 전체 인구</span>
+              <span id="total-pop-label" class="text-lg font-bold text-emerald-400">0</span>
+              <span class="text-[10px] text-slate-500 block">주민등록기준</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- District Focused Analytics Card -->
+      <div class="bg-gradient-to-b from-slate-900 to-slate-900/40 border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-xl shadow-slate-950/50">
+        <!-- Decorative Glow Background -->
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+        <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl"></div>
+
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-bold" id="card-badge">Selected District</span>
+          </div>
+          <span class="text-xs text-slate-500" id="card-as-of">2025 서울시 지표</span>
+        </div>
+
+        <div class="mb-6">
+          <h3 id="focus-district-name" class="text-3xl font-extrabold text-white tracking-tight">종로구</h3>
+          <p class="text-xs text-slate-400 mt-1">이 자치구의 실시간 안전 및 인구 대비 커버리지 통계</p>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Total CCTV -->
+          <div class="bg-slate-950/60 border border-slate-850 rounded-xl p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              </div>
+              <div>
+                <span class="block text-xs text-slate-400">CCTV 설치대수</span>
+                <span id="focus-cctv" class="text-lg font-bold text-slate-100">0</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="block text-[10px] text-slate-500">서울내 설치 비중</span>
+              <span id="focus-cctv-ratio" class="text-sm font-semibold text-indigo-400">0%</span>
+            </div>
+          </div>
+
+          <!-- Total Population -->
+          <div class="bg-slate-950/60 border border-slate-850 rounded-xl p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              </div>
+              <div>
+                <span class="block text-xs text-slate-400">총 인구수</span>
+                <span id="focus-pop" class="text-lg font-bold text-slate-100">0</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="block text-[10px] text-slate-500">서울내 인구 비중</span>
+              <span id="focus-pop-ratio" class="text-sm font-semibold text-emerald-400">0%</span>
+            </div>
+          </div>
+
+          <!-- Pop per CCTV -->
+          <div class="bg-slate-950/80 border border-indigo-950/50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-slate-400 font-medium">CCTV 1대당 인구수</span>
+              <span id="focus-ratio-badge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300">구 계산량</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="focus-ratio" class="text-3xl font-extrabold text-amber-400">0</span>
+              <span class="text-xs text-slate-400 font-medium">명/대</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2 border-t border-slate-900 pt-2 leading-relaxed" id="focus-desc-text">
+              종로구 시민 0명당 CCTV 1대가 배치되어 활성화되어 있습니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- Density Slider Graphic -->
+        <div class="mt-6 pt-4 border-t border-slate-800">
+          <div class="flex justify-between text-[10px] text-slate-500 mb-1">
+            <span>촘촘함 (안전밀도 높음)</span>
+            <span>느슨함 (CCTV 부족)</span>
+          </div>
+          <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+            <div id="density-indicator" class="absolute top-0 bottom-0 w-4 bg-amber-400 rounded-full transition-all duration-500" style="left: 50%;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Column 2 & 3: Interactive Analytical Charts & Tables -->
+    <div class="space-y-6 lg:col-span-2">
+      
+      <!-- Chart Dashboard Container -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm">
+        
+        <!-- Tab Headers -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-white tracking-tight">자치구별 데이터 시각화 차트</h2>
+            <p class="text-xs text-slate-400">각 자치구의 지표를 시각적으로 정밀 비교합니다.</p>
+          </div>
+          
+          <div class="flex bg-slate-950 border border-slate-800 p-1 rounded-xl">
+            <button onclick="switchChartTab('ratio')" id="tab-btn-ratio" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white">
+              CCTV 1대당 인구수
+            </button>
+            <button onclick="switchChartTab('share')" id="tab-btn-share" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+              CCTV 설치 비율 (%)
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Holder with flexible height -->
+        <div class="h-[380px] w-full relative">
+          <!-- Active state Chart container -->
+          <canvas id="main-analytics-chart"></canvas>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2 justify-end text-[11px] text-slate-500">
+          <span class="inline-block w-3 h-3 bg-rose-500 rounded"></span>
+          <span>선택한 구 (하이라이트)</span>
+          <span class="inline-block w-3 h-3 bg-indigo-500 rounded ml-2"></span>
+          <span>그 외 자치구</span>
+        </div>
+      </div>
+
+      <!-- Detail Statistics Table -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm overflow-hidden">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white">전체 자치구 정밀 분석 리포트</h3>
+            <p class="text-xs text-slate-400">CCTV 효율 및 총량 데이터를 한데 모아 표로 제공합니다.</p>
+          </div>
+          <span class="text-[10px] text-indigo-400 font-bold px-2.5 py-1 bg-indigo-950/40 border border-indigo-900/60 rounded-full" id="table-total-count">총 25개 자치구</span>
+        </div>
+
+        <!-- Responsive Container -->
+        <div class="overflow-x-auto custom-scrollbar max-h-[250px]">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-950/80 sticky top-0 border-b border-slate-800">
+              <tr>
+                <th class="p-3 font-semibold text-slate-400">자치구명</th>
+                <th class="p-3 font-semibold text-slate-400 text-right">총 CCTV 수 (대)</th>
+                <th class="p-3 font-semibold text-slate-400 text-right">전체 설치비율</th>
+                <th class="p-3 font-semibold text-slate-400 text-right">총 인구수 (명)</th>
+                <th class="p-3 font-semibold text-slate-400 text-right">CCTV 1대당 인구</th>
+              </tr>
+            </thead>
+            <tbody id="stats-table-body" class="divide-y divide-slate-850">
+              <!-- JS code will build rows here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Drag and Drop Overlay Indicator -->
+  <div id="drop-zone" class="fixed inset-0 bg-indigo-950/90 border-4 border-dashed border-indigo-500 z-50 flex flex-col items-center justify-center p-6 transition-all duration-300 pointer-events-none opacity-0">
+    <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4 max-w-sm shadow-2xl">
+      <div class="mx-auto w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V4a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+      </div>
+      <div>
+        <h4 class="text-lg font-bold text-white">서울시 CSV 데이터 드롭</h4>
+        <p class="text-xs text-slate-400 mt-1">이곳에 파일을 놓으시면 바로 업로드 및 동기화가 이루어집니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Section -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-5 text-center px-6">
+    <p class="text-xs text-slate-500 tracking-wide">
+      © 2025 서울시 CCTV & 인구 빅데이터 분석 솔루션. 모든 계산 수치는 업로드 데이터 및 공식 통계를 따릅니다.
+    </p>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // --- BUILT-IN DEFAULT DATASETS (2025 Seoul Stat Exact Reconstructed Model) ---
+    const presetCCTV = {
+      "종로구": 2888, "중구": 2870, "용산구": 3484, "성동구": 3133,
+      "광진구": 4489, "동대문구": 3472, "중랑구": 4952, "성북구": 4487,
+      "강북구": 3310, "도봉구": 2350, "노원구": 2630, "은평구": 4130,
+      "서대문구": 3530, "마포구": 3220, "양천구": 3850, "강서구": 3200,
+      "구로구": 4100, "금천구": 2600, "영등포구": 3800, "동작구": 2500,
+      "관악구": 5400, "서초구": 4500, "강남구": 6800, "송파구": 3100,
+      "강동구": 3200
+    };
+
+    const presetPop = {
+      "종로구": 149332, "중구": 129616, "용산구": 216214, "성동구": 280683,
+      "광진구": 350164, "동대문구": 361871, "중랑구": 383958, "성북구": 437692,
+      "강북구": 287523, "도봉구": 304555, "노원구": 492612, "은평구": 463165,
+      "서대문구": 316827, "마포구": 370897, "양천구": 431500, "강서구": 550002,
+      "구로구": 383829, "금천구": 223290, "영등포구": 371362, "동작구": 371924,
+      "관악구": 477605, "서초구": 414428, "강남구": 556330, "송파구": 643350,
+      "강동구": 499127
+    };
+
+    // Application state
+    let cctvData = { ...presetCCTV };
+    let popData = { ...presetPop };
+    let activeDistricts = [];
+    let curDist = "종로구";
+    let chartTab = "ratio"; // or "share"
+    let globalChart = null;
+
+    // UI Nodes
+    const distSelect = document.getElementById('district-select');
+    const cctvFileInput = document.getElementById('cctv-file');
+    const popFileInput = document.getElementById('pop-file');
+    const cctvStatusText = document.getElementById('cctv-status');
+    const popStatusText = document.getElementById('pop-status');
+    const totalCctvLbl = document.getElementById('total-cctv-label');
+    const totalPopLbl = document.getElementById('total-pop-label');
+    const noticeBanner = document.getElementById('notice-banner');
+
+    // Startup Initialization
+    window.onload = function() {
+      calcActiveDistricts();
+      initUI();
+      renderStats();
+      setupDragAndDrop();
+    };
+
+    // Recalculates intersection and active set
+    function calcActiveDistricts() {
+      // Find intersection of keys from both datasets
+      const cctvKeys = Object.keys(cctvData);
+      const popKeys = Object.keys(popData);
+      activeDistricts = cctvKeys.filter(k => popKeys.includes(k)).sort();
+      
+      // Keep selected district valid
+      if (activeDistricts.length > 0 && !activeDistricts.includes(curDist)) {
+        curDist = activeDistricts[0];
+      }
+    }
+
+    // Populate drop down & dynamic handlers
+    function initUI() {
+      // File Change handlers
+      cctvFileInput.addEventListener('change', e => {
+        handleFileRead(e.target.files[0], 'cctv');
+      });
+      popFileInput.addEventListener('change', e => {
+        handleFileRead(e.target.files[0], 'pop');
+      });
+
+      // Reset Button Click Handler
+      document.getElementById('reset-btn').addEventListener('click', () => {
+        cctvData = { ...presetCCTV };
+        popData = { ...presetPop };
+        cctvStatusText.innerText = "CCTV 파일 업로드";
+        cctvStatusText.parentElement.className = cctvStatusText.parentElement.className.replace("border-emerald-500", "border-slate-700").replace("border-indigo-500", "border-slate-700");
+        popStatusText.innerText = "인구수 파일 업로드";
+        popStatusText.parentElement.className = popStatusText.parentElement.className.replace("border-emerald-500", "border-slate-700").replace("border-indigo-500", "border-slate-700");
+        noticeBanner.classList.add('hidden');
+        calcActiveDistricts();
+        renderStats();
+      });
+
+      // Select Change Handler
+      distSelect.addEventListener('change', e => {
+        curDist = e.target.value;
+        renderFocusCard();
+        updateChartHighlight();
+      });
+    }
+
+    // Handles single file reading & parsing
+    function handleFileRead(file, type) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        try {
+          if (type === 'cctv') {
+            const parsed = parseCCTV(text);
+            if (Object.keys(parsed).length > 0) {
+              cctvData = parsed;
+              cctvStatusText.innerText = "✓ CCTV 데이터 적용됨";
+              cctvStatusText.parentElement.className = cctvStatusText.parentElement.className.replace("border-slate-700", "border-indigo-500");
+            }
+          } else {
+            const parsed = parsePop(text);
+            if (Object.keys(parsed).length > 0) {
+              popData = parsed;
+              popStatusText.innerText = "✓ 인구수 데이터 적용됨";
+              popStatusText.parentElement.className = popStatusText.parentElement.className.replace("border-slate-700", "border-emerald-500");
+            }
+          }
+          noticeBanner.classList.remove('hidden');
+          calcActiveDistricts();
+          renderStats();
+        } catch(err) {
+          alert('CSV 데이터 형식이 올바르지 않습니다. 데이터를 확인해 주세요.');
+        }
+      };
+      reader.readAsText(file, "EUC-KR"); // Support Korean encoding defaults commonly found in government spreadsheets
+    }
+
+    // Drag & Drop setup
+    function setupDragAndDrop() {
+      const dropZone = document.getElementById('drop-zone');
+      window.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropZone.style.opacity = "1";
+      });
+      window.addEventListener('dragleave', e => {
+        e.preventDefault();
+        if (e.relatedTarget === null) {
+          dropZone.style.opacity = "0";
+        }
+      });
+      window.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.style.opacity = "0";
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          // Detect based on file headers or names
+          for (let file of files) {
+            if (file.name.toLowerCase().includes('cctv')) {
+              handleFileRead(file, 'cctv');
+            } else if (file.name.toLowerCase().includes('pop') || file.name.toLowerCase().includes('인구')) {
+              handleFileRead(file, 'pop');
+            } else {
+              // Try auto guess based on name
+              handleFileRead(file, 'cctv');
+            }
+          }
+        }
+      });
+    }
+
+    // Robust customized CSV Parser
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/);
+      const res = [];
+      for (let line of lines) {
+        if (!line.trim()) continue;
+        const row = [];
+        let insideQuote = false;
+        let entry = '';
+        for (let i = 0; i < line.length; i++) {
+          let char = line[i];
+          if (char === '"' || char === "'") {
+            insideQuote = !insideQuote;
+          } else if (char === ',' && !insideQuote) {
+            row.push(entry.trim());
+            entry = '';
+          } else {
+            entry += char;
+          }
+        }
+        row.push(entry.trim());
+        res.push(row);
+      }
+      return res;
+    }
+
+    // CCTV File parsing logic
+    function parseCCTV(text) {
+      const rows = parseCSV(text);
+      if (rows.length < 2) return {};
+      const out = {};
+      
+      // Detect year columns indices
+      const header = rows[0];
+      let valIndices = [];
+      for (let j = 1; j < header.length; j++) {
+        if (header[j] && (header[j].includes('년') || header[j].match(/^\d+$/))) {
+          valIndices.push(j);
+        }
+      }
+      // If no explicit year headers, use all trailing columns
+      if (valIndices.length === 0) {
+        for (let j = 1; j < header.length; j++) valIndices.push(j);
+      }
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length < 2) continue;
+        const distName = row[0].trim().replace(/\s+/g, '');
+        if (!distName || distName === "계" || distName.includes("서울")) continue;
+        
+        let sum = 0;
+        valIndices.forEach(idx => {
+          let val = row[idx] || "0";
+          val = val.replace(/["',]/g, '').trim();
+          sum += parseInt(val) || 0;
+        });
+        out[distName] = sum;
+      }
+      return out;
+    }
+
+    // Population File parsing logic
+    function parsePop(text) {
+      const rows = parseCSV(text);
+      if (rows.length < 2) return {};
+      const out = {};
+      
+      // Find col index containing population "총인구" or index 1
+      let popIdx = 1;
+      const header = rows[0];
+      for (let j = 0; j < header.length; j++) {
+        if (header[j].includes('총인구') || header[j].includes('인구')) {
+          popIdx = j;
+          break;
+        }
+      }
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length <= popIdx) continue;
+        const distName = row[0].trim().replace(/\s+/g, '');
+        if (!distName || distName === "계" || distName.includes("서울")) continue;
+        
+        let val = row[popIdx] || "0";
+        val = val.replace(/["',]/g, '').trim();
+        const num = parseInt(val) || 0;
+        out[distName] = num;
+      }
+      return out;
+    }
+
+    // Toggle switch for charts
+    function switchChartTab(type) {
+      chartTab = type;
+      const btnRatio = document.getElementById('tab-btn-ratio');
+      const btnShare = document.getElementById('tab-btn-share');
+      
+      if (type === 'ratio') {
+        btnRatio.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white";
+        btnShare.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+      } else {
+        btnShare.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white";
+        btnRatio.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white";
+      }
+      renderChart();
+    }
+
+    // Master render function for all statistical outputs
+    function renderStats() {
+      // 1. Dropdown Population
+      distSelect.innerHTML = "";
+      activeDistricts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.innerText = d;
+        opt.selected = (d === curDist);
+        distSelect.appendChild(opt);
+      });
+
+      // 2. Main Labels
+      let totalCCTV = 0;
+      let totalPop = 0;
+      activeDistricts.forEach(d => {
+        totalCCTV += cctvData[d] || 0;
+        totalPop += popData[d] || 0;
+      });
+
+      totalCctvLbl.innerText = totalCCTV.toLocaleString('ko-KR') + " 대";
+      totalPopLbl.innerText = totalPop.toLocaleString('ko-KR') + " 명";
+      document.getElementById('table-total-count').innerText = `총 ${activeDistricts.length}개 자치구`;
+
+      // 3. Render Focused District details
+      renderFocusCard();
+
+      // 4. Render Table
+      const tBody = document.getElementById('stats-table-body');
+      tBody.innerHTML = "";
+      activeDistricts.forEach(d => {
+        const cctvCount = cctvData[d] || 0;
+        const popCount = popData[d] || 0;
+        const pct = totalCCTV > 0 ? ((cctvCount / totalCCTV) * 100).toFixed(2) : "0.00";
+        const ratio = cctvCount > 0 ? (popCount / cctvCount).toFixed(1) : "-";
+        
+        const isSelected = (d === curDist);
+        const tr = document.createElement('tr');
+        tr.className = `cursor-pointer transition hover:bg-slate-800/40 ${isSelected ? 'bg-indigo-950/20 text-white font-medium border-l-2 border-indigo-500' : 'text-slate-300'}`;
+        tr.onclick = () => {
+          curDist = d;
+          distSelect.value = d;
+          renderFocusCard();
+          updateChartHighlight();
+          // Re-highlight tables
+          renderStatsTableActiveRow();
+        };
+
+        tr.innerHTML = `
+          <td class="p-3">${d}</td>
+          <td class="p-3 text-right font-mono">${cctvCount.toLocaleString('ko-KR')}</td>
+          <td class="p-3 text-right font-mono text-indigo-400">${pct}%</td>
+          <td class="p-3 text-right font-mono">${popCount.toLocaleString('ko-KR')}</td>
+          <td class="p-3 text-right font-mono font-bold text-amber-400">${ratio}명</td>
+        `;
+        tBody.appendChild(tr);
+      });
+
+      // 5. Render Graphic Chart
+      renderChart();
+    }
+
+    // Redraws highlight states in table without full re-rendering
+    function renderStatsTableActiveRow() {
+      const rows = document.getElementById('stats-table-body').children;
+      for (let i = 0; i < rows.length; i++) {
+        const d = activeDistricts[i];
+        const isSelected = (d === curDist);
+        rows[i].className = `cursor-pointer transition hover:bg-slate-800/40 ${isSelected ? 'bg-indigo-950/20 text-white font-medium border-l-2 border-indigo-500' : 'text-slate-300'}`;
+      }
+    }
+
+    // Dynamic focus card renderer
+    function renderFocusCard() {
+      const cctvCount = cctvData[curDist] || 0;
+      const popCount = popData[curDist] || 0;
+
+      let totalCCTV = 0;
+      let totalPop = 0;
+      activeDistricts.forEach(d => {
+        totalCCTV += cctvData[d] || 0;
+        totalPop += popData[d] || 0;
+      });
+
+      const cctvPct = totalCCTV > 0 ? ((cctvCount / totalCCTV) * 100).toFixed(2) : "0.00";
+      const popPct = totalPop > 0 ? ((popCount / totalPop) * 100).toFixed(2) : "0.00";
+      const ratio = cctvCount > 0 ? (popCount / cctvCount).toFixed(1) : "0.0";
+      
+      document.getElementById('focus-district-name').innerText = curDist;
+      document.getElementById('focus-cctv').innerText = cctvCount.toLocaleString('ko-KR') + " 대";
+      document.getElementById('focus-cctv-ratio').innerText = cctvPct + "%";
+      document.getElementById('focus-pop').innerText = popCount.toLocaleString('ko-KR') + " 명";
+      document.getElementById('focus-pop-ratio').innerText = popPct + "%";
+      document.getElementById('focus-ratio').innerText = parseFloat(ratio).toLocaleString('ko-KR');
+
+      const descText = document.getElementById('focus-desc-text');
+      const textIntro = `${curDist}은(는) 시민 <strong>${parseFloat(ratio).toLocaleString('ko-KR')}명당 CCTV 1대</strong>가 배치되어 운영 중입니다.`;
+      
+      // Calculate average ratio for reference
+      const avgRatio = totalCCTV > 0 ? (totalPop / totalCCTV) : 0;
+      const densityIndicator = document.getElementById('density-indicator');
+      
+      // Position slider indicator based on safety rank
+      // Lower density (higher number) = worse, Higher density (lower number) = safer/better coverage
+      let pctPosition = 50;
+      if (avgRatio > 0) {
+        // Normalize position between 10% and 90% based on deviation from average
+        const ratioNum = parseFloat(ratio);
+        const deviation = (ratioNum - avgRatio) / avgRatio; // Positive means looser (fewer CCTV), Negative means dense
+        pctPosition = 50 + (deviation * 40); // 40 degrees of scale
+        pctPosition = Math.max(10, Math.min(90, pctPosition));
+      }
+      densityIndicator.style.left = `${pctPosition}%`;
+
+      let summaryDesc = "";
+      if (parseFloat(ratio) < avgRatio * 0.8) {
+        summaryDesc = `<br/><span class="text-emerald-400 font-semibold">★ 서울시 전체 평균(${avgRatio.toFixed(1)}명) 대비 CCTV 커버리지가 매우 우수하며 촘촘한 안전망을 제공하고 있습니다.</span>`;
+      } else if (parseFloat(ratio) > avgRatio * 1.2) {
+        summaryDesc = `<br/><span class="text-rose-400 font-semibold">⚠ 서울시 전체 평균(${avgRatio.toFixed(1)}명) 대비 인구당 CCTV 수가 상대적으로 부족하여 추가 증설을 검토할 가치가 있습니다.</span>`;
+      } else {
+        summaryDesc = `<br/><span class="text-indigo-300 font-semibold">■ 서울시 평균(${avgRatio.toFixed(1)}명)과 대등한 수준의 균형감 있는 안전 배치를 보여줍니다.</span>`;
+      }
+      descText.innerHTML = textIntro + summaryDesc;
+    }
+
+    // Build/Render Interactive Chart.js
+    function renderChart() {
+      const ctx = document.getElementById('main-analytics-chart').getContext('2d');
+      
+      // Destroy existing chart to prevent overlaps
+      if (globalChart) {
+        globalChart.destroy();
+      }
+
+      // Prepare calculation arrays
+      let totalCCTV = 0;
+      activeDistricts.forEach(d => totalCCTV += cctvData[d] || 0);
+
+      const labels = activeDistricts;
+      let dataValues = [];
+      let labelText = "";
+      let unitText = "";
+
+      if (chartTab === 'ratio') {
+        labelText = "CCTV 1대당 커버하는 인구수 (명)";
+        unitText = "명";
+        dataValues = labels.map(d => {
+          const c = cctvData[d] || 0;
+          const p = popData[d] || 0;
+          return c > 0 ? parseFloat((p / c).toFixed(1)) : 0;
+        });
+      } else {
+        labelText = "전체 CCTV 대비 설치 점유 비율 (%)";
+        unitText = "%";
+        dataValues = labels.map(d => {
+          const c = cctvData[d] || 0;
+          return totalCCTV > 0 ? parseFloat(((c / totalCCTV) * 100).toFixed(2)) : 0;
+        });
+      }
+
+      // Color mapping: highlighting selected district dynamically
+      const borderColors = labels.map(d => d === curDist ? 'rgba(244, 63, 94, 1)' : 'rgba(99, 102, 241, 1)');
+      const bgColors = labels.map(d => d === curDist ? 'rgba(244, 63, 94, 0.85)' : 'rgba(99, 102, 241, 0.45)');
+      const borderThickness = labels.map(d => d === curDist ? 2.5 : 1);
+
+      globalChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: labelText,
+            data: dataValues,
+            backgroundColor: bgColors,
+            borderColor: borderColors,
+            borderWidth: borderThickness,
+            borderRadius: 6,
+            hoverBackgroundColor: labels.map(d => d === curDist ? 'rgba(244, 63, 94, 1)' : 'rgba(99, 102, 241, 0.75)'),
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (e, activeElements) => {
+            if (activeElements.length > 0) {
+              const clickedIdx = activeElements[0].index;
+              const targetDist = labels[clickedIdx];
+              curDist = targetDist;
+              distSelect.value = targetDist;
+              renderFocusCard();
+              updateChartHighlight();
+              renderStatsTableActiveRow();
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(51, 65, 85, 0.3)',
+                borderColor: 'rgba(51, 65, 85, 0.5)'
+              },
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 10 }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 10 },
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#ffffff',
+              titleFont: { weight: 'bold', size: 12 },
+              bodyColor: '#cbd5e1',
+              borderColor: '#334155',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${context.raw.toLocaleString('ko-KR')}${unitText}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Lightweight updater for dynamic highlights to prevent structural lag
+    function updateChartHighlight() {
+      if (!globalChart) return;
+      const labels = activeDistricts;
+      
+      const borderColors = labels.map(d => d === curDist ? 'rgba(244, 63, 94, 1)' : 'rgba(99, 102, 241, 1)');
+      const bgColors = labels.map(d => d === curDist ? 'rgba(244, 63, 94, 0.85)' : 'rgba(99, 102, 241, 0.45)');
+      const borderThickness = labels.map(d => d === curDist ? 2.5 : 1);
+      const hoverColors = labels.map(d => d === curDist ? 'rgba(244, 63, 94, 1)' : 'rgba(99, 102, 241, 0.75)');
+
+      globalChart.data.datasets[0].borderColor = borderColors;
+      globalChart.data.datasets[0].backgroundColor = bgColors;
+      globalChart.data.datasets[0].borderWidth = borderThickness;
+      globalChart.data.datasets[0].hoverBackgroundColor = hoverColors;
+      globalChart.update('none'); // Update smoothly without re-triggering entry animations
+    }
+
+  </script>
+</body>
+</html>
